@@ -99,10 +99,26 @@ async function connectToWhatsApp() {
         for (const msg of messages) {
             try {
                 if (!msg.message || msg.key.fromMe) continue;
-                const remoteJid = msg.key.remoteJid || '';
-                if (remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') continue;
 
-                const senderPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '');
+                const remoteJid = msg.key.remoteJid || '';
+                if (
+                    remoteJid.endsWith('@g.us') ||
+                    remoteJid.endsWith('@newsletter') ||
+                    remoteJid === 'status@broadcast'
+                ) {
+                    continue;
+                }
+
+                const candidateJid =
+                    (msg.key.remoteJidAlt && msg.key.remoteJidAlt.includes('@s.whatsapp.net') && msg.key.remoteJidAlt) ||
+                    (msg.key.participant && msg.key.participant.includes('@s.whatsapp.net') && msg.key.participant) ||
+                    (msg.key.senderPn && String(msg.key.senderPn).includes('@s.whatsapp.net') && msg.key.senderPn) ||
+                    remoteJid;
+
+                const isLidOnly = candidateJid.endsWith('@lid') && !remoteJid.includes('@s.whatsapp.net');
+                const rawContact = candidateJid.replace('@s.whatsapp.net', '').replace('@lid', '');
+                const senderPhone = formatSaudiPhone(rawContact) || rawContact;
+
                 const messageText =
                     msg.message.conversation ||
                     msg.message.extendedTextMessage?.text ||
@@ -134,6 +150,10 @@ async function connectToWhatsApp() {
                         })
                         .eq('id', convId);
                 } else {
+                    const summaryNote = isLidOnly
+                        ? `رسالة واردة عبر معرّف واتساب (LID: ${senderPhone}) على الرقم (${connectedPhone || 'غير محدد'}).`
+                        : `رسالة واردة عبر الواتساب على الرقم (${connectedPhone || 'غير محدد'}).`;
+
                     const { data: newConv, error: insertErr } = await dbClient
                         .from('conversations')
                         .insert([{
@@ -142,7 +162,7 @@ async function connectToWhatsApp() {
                             sender_contact: senderPhone,
                             channel_id: targetChannelId,
                             unread: true,
-                            ai_summary: `رسالة واردة عبر الواتساب على الرقم (${connectedPhone || 'غير محدد'}).`
+                            ai_summary: summaryNote
                         }])
                         .select();
 
@@ -165,7 +185,7 @@ async function connectToWhatsApp() {
                 if (msgErr) {
                     console.error('❌ خطأ في حفظ الرسالة:', msgErr.message);
                 } else {
-                    console.log(`📩 تم حفظ رسالة واردة من ${senderPhone} على القناة ${targetChannelId}`);
+                    console.log(`📩 تم حفظ رسالة واردة من ${senderPhone} (LID فقط: ${isLidOnly}) على القناة ${targetChannelId}`);
                 }
             } catch (err) {
                 console.error('❌ خطأ أثناء معالجة رسالة واردة:', err.message);
