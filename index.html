@@ -118,7 +118,7 @@
       <!-- قائمة المحادثات -->
       <section class="w-96 bg-white border-l border-slate-200 flex flex-col shrink-0">
         <div class="p-3.5 border-b border-slate-200 bg-slate-50/70">
-          <input type="text" id="search-input" oninput="renderConversations()" placeholder="ابحث في المحادثات..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500" />
+          <input type="text" id="search-input" oninput="renderConversations()" placeholder="ابحث في المحادثات أو الأرقام..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500" />
         </div>
         <div id="conversations-list" class="flex-1 overflow-y-auto divide-y divide-slate-100"></div>
       </section>
@@ -294,7 +294,7 @@
     let selectedChannel = 'all';
     let activeConversationId = null;
     let replyChannelId = '';
-    let liveWaStatus = { connected: false, phone: '' };
+    let liveWaStatus = { connected: false, phone: '', sessions: [] };
 
     function normalizePhone(val) {
       return String(val || '').replace(/\D/g, '');
@@ -306,6 +306,13 @@
       if (!da || !db) return false;
       if (da === db) return true;
       return da.slice(-9) === db.slice(-9);
+    }
+
+    function findSessionForChannel(ch) {
+      if (!ch || !Array.isArray(liveWaStatus.sessions)) return null;
+      const byId = liveWaStatus.sessions.find(s => String(s.channelId) === String(ch.id));
+      if (byId) return byId;
+      return liveWaStatus.sessions.find(s => isSamePhone(s.phone, ch.value)) || null;
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -381,16 +388,24 @@
       try {
         const res = await fetch(`${WA_SERVER_URL}/status`);
         const data = await res.json();
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        const connectedSessions = sessions.filter(s => s.connected);
+
         liveWaStatus = {
-          connected: Boolean(data.connected),
-          phone: normalizePhone(data.phone)
+          connected: Boolean(data.connected || connectedSessions.length > 0),
+          phone: normalizePhone(data.phone || connectedSessions[0]?.phone || ''),
+          sessions
         };
       } catch (err) {
-        liveWaStatus = { connected: false, phone: '' };
+        liveWaStatus = { connected: false, phone: '', sessions: [] };
       }
 
       if (indicator) {
-        if (liveWaStatus.connected && liveWaStatus.phone) {
+        const connectedSessions = (liveWaStatus.sessions || []).filter(s => s.connected);
+        if (liveWaStatus.connected && connectedSessions.length > 0) {
+          const summary = connectedSessions.map(s => `${s.name || s.channelId}: ${s.phone}`).join(' | ');
+          indicator.innerHTML = `إدارة قنوات الاتصال الموحدة · <span class="text-emerald-400 font-bold">واتساب متصل (${summary})</span>`;
+        } else if (liveWaStatus.connected && liveWaStatus.phone) {
           indicator.innerHTML = `إدارة قنوات الاتصال الموحدة · <span class="text-emerald-400 font-bold">واتساب متصل: ${liveWaStatus.phone}</span>`;
         } else {
           indicator.innerHTML = `إدارة قنوات الاتصال الموحدة · <span class="text-amber-400">واتساب غير متصل بالسيرفر</span>`;
@@ -462,7 +477,8 @@
 
       allowedChannels.forEach(ch => {
         if (ch.type === 'phone') {
-          const isMatched = liveWaStatus.connected && isSamePhone(ch.value, liveWaStatus.phone);
+          const session = findSessionForChannel(ch);
+          const isMatched = Boolean(session && session.connected) || (liveWaStatus.connected && isSamePhone(ch.value, liveWaStatus.phone));
           const badge = isMatched
             ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold shrink-0">متصل</span>`
             : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">غير مرتبط</span>`;
@@ -498,12 +514,16 @@
     function renderConversations() {
       const listEl = document.getElementById('conversations-list');
       const allowedIds = getAllowedChannels().map(c => c.id);
-      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
 
       const filtered = conversations.filter(c => {
         if (!allowedIds.includes(c.channel_id)) return false;
         if (selectedChannel !== 'all' && c.channel_id !== selectedChannel) return false;
-        if (searchTerm && !c.sender_name.toLowerCase().includes(searchTerm)) return false;
+        if (searchTerm) {
+          const nameMatch = String(c.sender_name || '').toLowerCase().includes(searchTerm);
+          const contactMatch = String(c.sender_contact || '').toLowerCase().includes(searchTerm);
+          if (!nameMatch && !contactMatch) return false;
+        }
         return true;
       });
 
@@ -524,11 +544,14 @@
         return `
           <div onclick="openConversation(${c.id})" class="p-3.5 cursor-pointer transition hover:bg-slate-50 ${isSelected ? 'bg-emerald-50/70 border-r-4 border-emerald-500' : ''}">
             <div class="flex justify-between items-center mb-1">
-              <span class="font-bold text-sm text-slate-800">${c.sender_name}</span>
+              <span class="font-bold text-sm text-slate-800">${c.sender_name || 'عميل'}</span>
               <div>${badgeHTML}</div>
             </div>
-            <div class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 inline-block mb-1">${ch.name}</div>
-            <p class="text-xs text-slate-500 truncate">${lastMsg.text}</p>
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">${ch.name || c.channel_id}</span>
+              ${c.sender_contact ? `<span class="text-[11px] font-mono text-slate-500" dir="ltr">${c.sender_contact}</span>` : ''}
+            </div>
+            <p class="text-xs text-slate-500 truncate">${lastMsg.text || ''}</p>
           </div>
         `;
       }).join('');
@@ -554,10 +577,13 @@
       const incomingCh = channels.find(x => x.id === conv.channel_id) || { name: '', value: '' };
 
       chatArea.innerHTML = `
-        <div class="bg-white px-6 py-3.5 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <div class="bg-white px-6 py-3.5 border-b border-slate-200 flex items-center justify-between shrink-0 gap-3 flex-wrap">
           <div>
-            <h2 class="font-bold text-slate-800 text-sm">${conv.sender_name} <span class="text-xs font-mono text-slate-400">${conv.ticket}</span></h2>
-            <div class="text-xs text-slate-500 mt-0.5">عبر: <strong class="text-slate-700">${incomingCh.name} (${incomingCh.value})</strong></div>
+            <h2 class="font-bold text-slate-800 text-sm">${conv.sender_name || 'عميل'} <span class="text-xs font-mono text-slate-400">${conv.ticket || ''}</span></h2>
+            <div class="text-xs text-slate-500 mt-0.5">
+              المرسل: <strong class="font-mono text-slate-700" dir="ltr">${conv.sender_contact || 'غير محدد'}</strong>
+              · عبر: <strong class="text-slate-700">${incomingCh.name} (${incomingCh.value})</strong>
+            </div>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="toggleStatus(${conv.id}, 'urgent')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${conv.urgent ? 'bg-amber-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}">
@@ -612,11 +638,15 @@
       }
     }
 
-    async function sendWhatsAppViaServer(phone, message) {
+    async function sendWhatsAppViaServer(phone, message, channelId) {
       const res = await fetch(`${WA_SERVER_URL}/send-whatsapp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: normalizePhone(phone), message })
+        body: JSON.stringify({
+          phone: normalizePhone(phone),
+          message,
+          channelId
+        })
       });
       return await res.json();
     }
@@ -628,42 +658,46 @@
       if (!text) return;
 
       const conv = conversations.find(c => c.id === activeConversationId);
-      const ch = channels.find(c => c.id === replyChannelId);
+      if (!conv) return;
+      const targetChId = replyChannelId || conv.channel_id;
+      const ch = channels.find(c => c.id === targetChId);
 
-      if (ch && ch.type === 'phone' && conv && conv.sender_contact) {
+      if (ch && ch.type === 'phone' && conv.sender_contact) {
         try {
-          const waRes = await sendWhatsAppViaServer(conv.sender_contact, text);
+          const waRes = await sendWhatsAppViaServer(conv.sender_contact, text, targetChId);
           if (!waRes.success) {
             alert('تعذر إرسال الرسالة للواتساب: ' + (waRes.error || 'تأكد من الاتصال'));
             return;
           }
         } catch (err) {
-          alert('تعذر الاتصال بخادم الواتساب على البورت 3000');
+          alert('تعذر الوصول إلى سيرفر الواتساب');
           return;
         }
       }
 
-      const { error } = await dbClient.from('messages').insert([
-        {
-          conversation_id: activeConversationId,
-          from_type: 'agent',
-          user_id: currentUser.id,
-          text: text,
-          via_channel: replyChannelId
-        }
-      ]);
+      const { error } = await dbClient.from('messages').insert([{
+        conversation_id: conv.id,
+        from_type: 'agent',
+        user_id: currentUser?.id || null,
+        text,
+        via_channel: targetChId
+      }]);
 
       if (!error) {
+        await dbClient.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
         input.value = '';
         await fetchConversations();
       }
     }
 
     function openNewMessageModal() {
-      document.getElementById('new-message-modal').classList.remove('hidden');
       const select = document.getElementById('new-channel-select');
       const allowed = getAllowedChannels();
       select.innerHTML = allowed.map(ch => `<option value="${ch.id}">${ch.name} (${ch.value})</option>`).join('');
+      if (selectedChannel && selectedChannel !== 'all' && allowed.some(c => c.id === selectedChannel)) {
+        select.value = selectedChannel;
+      }
+      document.getElementById('new-message-modal').classList.remove('hidden');
     }
 
     function closeNewMessageModal() {
@@ -673,102 +707,107 @@
     async function createNewMessage(e) {
       e.preventDefault();
       const senderName = document.getElementById('new-sender-name').value.trim();
-      const senderContact = document.getElementById('new-sender-contact').value.trim();
+      const rawContact = document.getElementById('new-sender-contact').value.trim();
       const channelId = document.getElementById('new-channel-select').value;
-      const msgText = document.getElementById('new-msg-text').value.trim();
-      const ch = channels.find(c => c.id === channelId);
+      const text = document.getElementById('new-msg-text').value.trim();
+      if (!senderName || !rawContact || !text) return;
 
+      let cleanContact = normalizePhone(rawContact);
+      if (cleanContact.startsWith('05') && cleanContact.length === 10) {
+        cleanContact = '966' + cleanContact.slice(1);
+      }
+
+      const ch = channels.find(c => c.id === channelId);
       if (ch && ch.type === 'phone') {
         try {
-          const waRes = await sendWhatsAppViaServer(senderContact, msgText);
+          const waRes = await sendWhatsAppViaServer(cleanContact, text, channelId);
           if (!waRes.success) {
             alert('تعذر إرسال رسالة الواتساب: ' + (waRes.error || 'تأكد من الاتصال'));
             return;
           }
         } catch (err) {
-          alert('تعذر الاتصال بخادم الواتساب على البورت 3000');
+          alert('تعذر الاتصال بسيرفر الواتساب');
           return;
         }
       }
 
-      const ticketNo = '#T-' + Math.floor(1000 + Math.random() * 9000);
-
-      const { data: convData, error: convErr } = await dbClient.from('conversations').insert([
-        {
-          ticket: ticketNo,
+      const { data: newConv, error: convErr } = await dbClient
+        .from('conversations')
+        .insert([{
+          ticket: '#T-' + Math.floor(1000 + Math.random() * 9000),
           sender_name: senderName,
-          sender_contact: senderContact,
+          sender_contact: cleanContact || rawContact,
           channel_id: channelId,
           unread: false,
-          ai_summary: 'محادثة جديدة تم إنشاؤها يدوياً.'
-        }
-      ]).select();
+          ai_summary: 'محادثة صادرة جديدة'
+        }])
+        .select();
 
-      if (convErr || !convData) {
-        alert("خطأ في إنشاء المحادثة: " + (convErr ? convErr.message : ''));
+      if (convErr || !newConv || !newConv[0]) {
+        alert('تعذر إنشاء المحادثة في قاعدة البيانات');
         return;
       }
 
-      const newConvId = convData[0].id;
+      await dbClient.from('messages').insert([{
+        conversation_id: newConv[0].id,
+        from_type: 'agent',
+        user_id: currentUser?.id || null,
+        text,
+        via_channel: channelId
+      }]);
 
-      const { error: msgErr } = await dbClient.from('messages').insert([
-        {
-          conversation_id: newConvId,
-          from_type: 'agent',
-          user_id: currentUser.id,
-          text: msgText,
-          via_channel: channelId
-        }
-      ]);
-
-      if (!msgErr) {
-        closeNewMessageModal();
-        document.getElementById('new-sender-name').value = '';
-        document.getElementById('new-sender-contact').value = '';
-        document.getElementById('new-msg-text').value = '';
-        await fetchConversations();
-        openConversation(newConvId);
-      }
+      document.getElementById('new-sender-name').value = '';
+      document.getElementById('new-sender-contact').value = '';
+      document.getElementById('new-msg-text').value = '';
+      closeNewMessageModal();
+      activeConversationId = newConv[0].id;
+      replyChannelId = channelId;
+      await fetchConversations();
     }
 
     function openAnalyticsModal() {
-      document.getElementById('analytics-modal').classList.remove('hidden');
       document.getElementById('stat-total-conv').textContent = conversations.length;
       document.getElementById('stat-urgent-conv').textContent = conversations.filter(c => c.urgent).length;
       document.getElementById('stat-resolved-conv').textContent = conversations.filter(c => c.resolved).length;
 
+      const allMsgs = conversations.flatMap(c => c.messages || []).filter(m => m.from_type === 'agent');
       const tbody = document.getElementById('agents-stats-body');
-      tbody.innerHTML = allAgents.map(agent => {
-        let replyCount = 0;
-        conversations.forEach(c => {
-          (c.messages || []).forEach(m => {
-            if (m.from_type === 'agent' && m.user_id === agent.id) replyCount++;
-          });
-        });
-
+      tbody.innerHTML = allAgents.map(ag => {
+        const count = allMsgs.filter(m => String(m.user_id) === String(ag.id)).length;
         return `
           <tr>
-            <td class="p-3 font-bold text-slate-800">${agent.name}</td>
-            <td class="p-3 text-slate-600">${agent.role || '-'}</td>
-            <td class="p-3 text-center font-extrabold text-indigo-700">${replyCount}</td>
+            <td class="p-3 font-bold">${ag.name}</td>
+            <td class="p-3 text-slate-500">${ag.role}</td>
+            <td class="p-3 text-center font-extrabold text-emerald-700">${count}</td>
           </tr>
         `;
       }).join('');
+
+      document.getElementById('analytics-modal').classList.remove('hidden');
     }
 
     function closeAnalyticsModal() {
       document.getElementById('analytics-modal').classList.add('hidden');
     }
 
-    async function openUsersModal() {
-      document.getElementById('users-modal').classList.remove('hidden');
-      resetUserForm();
+    function openUsersModal() {
       renderChannelsCheckboxes([]);
-      await refreshUsersTable();
+      renderUsersTable();
+      document.getElementById('users-modal').classList.remove('hidden');
     }
 
     function closeUsersModal() {
       document.getElementById('users-modal').classList.add('hidden');
+    }
+
+    function renderChannelsCheckboxes(selectedIds) {
+      const box = document.getElementById('channels-checkboxes');
+      box.innerHTML = channels.map(ch => `
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" value="${ch.id}" class="ch-perm-cb rounded border-slate-300" ${selectedIds.includes(ch.id) ? 'checked' : ''} />
+          <span>${ch.name}</span>
+        </label>
+      `).join('');
     }
 
     function resetUserForm() {
@@ -782,59 +821,23 @@
       renderChannelsCheckboxes([]);
     }
 
-    function renderChannelsCheckboxes(selectedIds) {
-      const container = document.getElementById('channels-checkboxes');
-      container.innerHTML = channels.map(ch => {
-        const checked = Array.isArray(selectedIds) && selectedIds.includes(ch.id) ? 'checked' : '';
-        return `
-          <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-            <input type="checkbox" value="${ch.id}" ${checked} class="channel-perm-cb rounded border-slate-300 text-emerald-600" />
-            <span class="truncate">${ch.name} (${ch.value})</span>
-          </label>
-        `;
-      }).join('');
-    }
-
-    async function refreshUsersTable() {
-      const { data } = await dbClient.from('agents').select('*');
-      if (data) allAgents = data;
-      const tbody = document.getElementById('users-table-body');
-      tbody.innerHTML = allAgents.map(u => `
-        <tr>
-          <td class="p-2.5 font-bold">${u.name}</td>
-          <td class="p-2.5 font-mono text-slate-600">${u.username}</td>
-          <td class="p-2.5">${u.is_admin ? 'مدير نظام' : (u.role || 'موظف')}</td>
-          <td class="p-2.5 text-center space-x-2 space-x-reverse">
-            <button onclick="editUser(${u.id})" class="text-blue-600 hover:underline font-bold cursor-pointer">تعديل</button>
-            <button onclick="deleteUser(${u.id})" class="text-rose-600 hover:underline font-bold cursor-pointer">حذف</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    function editUser(userId) {
-      const u = allAgents.find(x => x.id === userId);
-      if (!u) return;
-      document.getElementById('editing-user-id').value = u.id;
-      document.getElementById('form-title').textContent = 'تعديل بيانات المستخدم';
-      document.getElementById('u-username').value = u.username;
-      document.getElementById('u-pin').value = u.pin_code;
-      document.getElementById('u-name').value = u.name;
-      document.getElementById('u-role').value = u.role || '';
-      document.getElementById('u-is-admin').checked = Boolean(u.is_admin);
-      renderChannelsCheckboxes(u.allowed_channels || []);
-    }
-
-    async function deleteUser(userId) {
-      if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
-      await dbClient.from('agents').delete().eq('id', userId);
-      await refreshUsersTable();
+    function editUser(id) {
+      const ag = allAgents.find(x => String(x.id) === String(id));
+      if (!ag) return;
+      document.getElementById('editing-user-id').value = ag.id;
+      document.getElementById('form-title').textContent = 'تعديل مستخدم';
+      document.getElementById('u-username').value = ag.username;
+      document.getElementById('u-pin').value = ag.pin_code;
+      document.getElementById('u-name').value = ag.name;
+      document.getElementById('u-role').value = ag.role;
+      document.getElementById('u-is-admin').checked = Boolean(ag.is_admin);
+      renderChannelsCheckboxes(Array.isArray(ag.allowed_channels) ? ag.allowed_channels : []);
     }
 
     async function saveUser(e) {
       e.preventDefault();
       const editId = document.getElementById('editing-user-id').value;
-      const allowedChannels = Array.from(document.querySelectorAll('.channel-perm-cb:checked')).map(cb => cb.value);
+      const allowedCh = Array.from(document.querySelectorAll('.ch-perm-cb:checked')).map(cb => cb.value);
 
       const payload = {
         username: document.getElementById('u-username').value.trim().toLowerCase(),
@@ -842,7 +845,7 @@
         name: document.getElementById('u-name').value.trim(),
         role: document.getElementById('u-role').value.trim(),
         is_admin: document.getElementById('u-is-admin').checked,
-        allowed_channels: allowedChannels
+        allowed_channels: allowedCh
       };
 
       if (editId) {
@@ -851,8 +854,32 @@
         await dbClient.from('agents').insert([payload]);
       }
 
+      const { data: agData } = await dbClient.from('agents').select('*');
+      if (agData) allAgents = agData;
       resetUserForm();
-      await refreshUsersTable();
+      renderUsersTable();
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('هل أنت متأكد من حذف هذا المستخدم؟')) return;
+      await dbClient.from('agents').delete().eq('id', id);
+      allAgents = allAgents.filter(a => String(a.id) !== String(id));
+      renderUsersTable();
+    }
+
+    function renderUsersTable() {
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = allAgents.map(ag => `
+        <tr>
+          <td class="p-2.5 font-bold">${ag.name}</td>
+          <td class="p-2.5 font-mono text-slate-500">${ag.username}</td>
+          <td class="p-2.5">${ag.is_admin ? 'مدير نظام' : ag.role}</td>
+          <td class="p-2.5 text-center space-x-2 space-x-reverse">
+            <button onclick="editUser('${ag.id}')" class="text-indigo-600 hover:underline font-bold">تعديل</button>
+            <button onclick="deleteUser('${ag.id}')" class="text-rose-600 hover:underline font-bold">حذف</button>
+          </td>
+        </tr>
+      `).join('');
     }
   </script>
 </body>
