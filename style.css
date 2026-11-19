@@ -1,57 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
 
 :root {
-  --ghadaq-teal: #18aaa8;
-  --ghadaq-indigo: #303f92;
-  --ghadaq-light-bg: #f4f5f5;
-  --ghadaq-grad-start: #047399;
-  --ghadaq-grad-end: #19ada9;
-  --ghadaq-soft-secondary: #deecec;
-  --ghadaq-white: #ffffff;
+  --ghadaq-primary: #0284c7;
+  --ghadaq-primary-dark: #0369a1;
+  --ghadaq-accent: #06b6d4;
+  --ghadaq-deep: #0c2d48;
+  --ghadaq-soft: #f0f9ff;
+  --ghadaq-border: #bae6fd;
 }
 
 body {
   font-family: 'Tajawal', sans-serif;
-  background-color: var(--ghadaq-light-bg);
-  color: var(--ghadaq-indigo);
+  background-color: var(--ghadaq-soft);
+  color: #0f172a;
 }
 
-/* الأزرار والعناصر التفاعلية الأساسية */
 .bg-emerald-600 {
-  background-color: var(--ghadaq-teal) !important;
+  background-color: var(--ghadaq-primary) !important;
 }
 
 .hover\:bg-emerald-500:hover {
-  background-color: var(--ghadaq-indigo) !important;
+  background-color: var(--ghadaq-primary-dark) !important;
 }
 
 .bg-emerald-500 {
-  background: linear-gradient(135deg, var(--ghadaq-grad-start), var(--ghadaq-grad-end)) !important;
+  background-color: var(--ghadaq-accent) !important;
 }
 
 .text-emerald-400,
 .text-emerald-600,
 .text-emerald-700 {
-  color: var(--ghadaq-teal) !important;
+  color: var(--ghadaq-primary) !important;
 }
 
 .bg-emerald-50,
 .bg-emerald-50\/70 {
-  background-color: var(--ghadaq-soft-secondary) !important;
+  background-color: #e0f2fe !important;
 }
 
 .border-emerald-500 {
-  border-color: var(--ghadaq-teal) !important;
+  border-color: var(--ghadaq-primary) !important;
 }
 
-/* القوائم والخلفيات الداكنة باللون النيلي الرئيسي */
 .bg-slate-900,
 .bg-slate-950 {
-  background-color: var(--ghadaq-indigo) !important;
-}
-
-.bg-slate-800 {
-  background-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: var(--ghadaq-deep) !important;
 }
 
 ::-webkit-scrollbar {
@@ -60,16 +53,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--ghadaq-soft-secondary);
+  background: #e0f2fe;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--ghadaq-grad-end);
+  background: #7dd3fc;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ghadaq-indigo);
+  background: var(--ghadaq-primary);
 }
 
 * {
