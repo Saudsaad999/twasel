@@ -1,6 +1,7 @@
 const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { createClient } = require('@supabase/supabase-js');
-const qrcode = require('qrcode-terminal');
+const qrcodeTerminal = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const express = require('express');
 const cors = require('cors');
 
@@ -8,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = 'https://veeydctazdsjbcbymrbb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_wEj9ef1Qkvfqx2OlVxikVA_m4p4Ubz3';
 const dbClient = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -16,6 +17,7 @@ const dbClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 let sock;
 let connectedPhone = '';
 let isConnected = false;
+let latestQr = '';
 
 function normalizePhone(val) {
     return String(val || '').replace(/\D/g, '');
@@ -58,8 +60,9 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('📌 امسح رمز QR Code من تطبيق الواتساب في جوالك:');
-            qrcode.generate(qr, { small: true });
+            latestQr = qr;
+            console.log('📌 امسح رمز QR Code من تطبيق الواتساب في جوالك أو افتح /qr في المتصفح:');
+            qrcodeTerminal.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
@@ -71,10 +74,12 @@ async function connectToWhatsApp() {
             if (shouldReconnect) {
                 connectToWhatsApp();
             } else {
+                latestQr = '';
                 console.log('🔒 تم تسجيل الخروج نهائياً. احذف مجلد auth_info_baileys ثم أعد التشغيل لربط حساب جديد.');
             }
         } else if (connection === 'open') {
             isConnected = true;
+            latestQr = '';
             connectedPhone = normalizePhone(sock.user?.id?.split(':')[0] || '');
             console.log('✅ متصل بالواتساب الفعلي بنجاح! الرقم المتصل:', connectedPhone);
         }
@@ -160,6 +165,85 @@ async function connectToWhatsApp() {
         }
     });
 }
+
+// عرض باركود الواتساب كصورة واضحة في المتصفح
+app.get('/qr', async (req, res) => {
+    try {
+        if (isConnected) {
+            return res.send(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8" />
+                    <title>حالة الواتساب</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
+                        .box { display: inline-block; background: #fff; padding: 28px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+                        .ok { color: #15803d; font-size: 19px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="box">
+                        <p class="ok">✅ الواتساب متصل بنجاح</p>
+                        <p>الرقم المرتبط: ${connectedPhone || 'غير محدد'}</p>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+
+        if (!latestQr) {
+            return res.send(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8" />
+                    <title>انتظار الباركود</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
+                        .box { display: inline-block; background: #fff; padding: 28px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+                    </style>
+                </head>
+                <body>
+                    <div class="box">
+                        <h3>⏳ جاري تجهيز رمز QR...</h3>
+                        <p>سيتم تحديث الصفحة تلقائياً خلال 3 ثوانٍ.</p>
+                    </div>
+                    <script>setTimeout(() => location.reload(), 3000);</script>
+                </body>
+                </html>
+            `);
+        }
+
+        const qrImageDataUrl = await QRCode.toDataURL(latestQr, { width: 320, margin: 2 });
+
+        res.send(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8" />
+                <meta http-equiv="refresh" content="15" />
+                <title>مسح باركود واتساب</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f8fafc; color: #0f172a; }
+                    .card { display: inline-block; background: #fff; padding: 28px; border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+                    img { background: #fff; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; }
+                    p { color: #475569; font-size: 14px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>امسح رمز QR من تطبيق الواتساب في جوالك</h2>
+                    <img src="${qrImageDataUrl}" alt="WhatsApp QR Code" />
+                    <p>الأجهزة المرتبطة ← ربط جهاز. تتحدث الصفحة تلقائياً كل 15 ثانية.</p>
+                </div>
+            </body>
+            </html>
+        `);
+    } catch (err) {
+        res.status(500).send('تعذر توليد صورة الباركود');
+    }
+});
 
 // نقطة التحقق من حالة الاتصال والرقم المرتبط للواجهة
 app.get('/status', (req, res) => {
