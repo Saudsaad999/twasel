@@ -1,6 +1,5 @@
 const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { createClient } = require('@supabase/supabase-js');
-const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 const express = require('express');
 const cors = require('cors');
@@ -14,10 +13,11 @@ const SUPABASE_URL = 'https://veeydctazdsjbcbymrbb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_wEj9ef1Qkvfqx2OlVxikVA_m4p4Ubz3';
 const dbClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let sock;
-let connectedPhone = '';
-let isConnected = false;
-let latestQr = '';
+// تشغيل القناتين المحدتين فقط
+const ALLOWED_CHANNELS = ['p1', 'p2'];
+
+// تخزين جلسات القناتين
+const sessions = {};
 
 function normalizePhone(val) {
     return String(val || '').replace(/\D/g, '');
@@ -31,65 +31,56 @@ function formatSaudiPhone(val) {
     return digits;
 }
 
-async function resolveChannelIdByConnectedPhone(phone) {
-    try {
-        const { data: channels, error } = await dbClient
-            .from('channels')
-            .select('*')
-            .eq('type', 'phone');
-
-        if (!error && Array.isArray(channels) && channels.length > 0) {
-            const cleanConnected = normalizePhone(phone);
-            const matched = channels.find(ch => {
-                const cleanCh = normalizePhone(ch.value);
-                if (!cleanCh || !cleanConnected) return false;
-                return cleanCh === cleanConnected || cleanCh.slice(-9) === cleanConnected.slice(-9);
-            });
-            if (matched) return matched.id;
-            return channels[0].id;
-        }
-    } catch (err) {
-        console.error('تعذر مطابقة القناة من جدول channels:', err.message);
+async function startSessionForChannel(channel) {
+    const channelId = channel.id;
+    if (!sessions[channelId]) {
+        sessions[channelId] = {
+            id: channelId,
+            name: channel.name || channelId,
+            expectedPhone: formatSaudiPhone(channel.value),
+            sock: null,
+            isConnected: false,
+            connectedPhone: '',
+            latestQr: ''
+        };
     }
-    return 'p1';
-}
 
-async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    const session = sessions[channelId];
+    const { state, saveCreds } = await useMultiFileAuthState(`auth_info_baileys/${channelId}`);
 
-    sock = makeWASocket({
+    const sock = makeWASocket({
         auth: state,
-        browser: ['Tawasulna', 'Chrome', '1.0.0']
+        browser: [`Tawasulna-${channelId}`, 'Chrome', '1.0.0']
     });
 
+    session.sock = sock;
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            latestQr = qr;
-            console.log('📌 امسح رمز QR Code من تطبيق الواتساب في جوالك أو افتح /qr في المتصفح:');
-            qrcodeTerminal.generate(qr, { small: true });
+            session.latestQr = qr;
+            console.log(`📌 باركود جاهز للقناة [${session.name} - ${channelId}] على /qr/${channelId}`);
         }
 
         if (connection === 'close') {
-            isConnected = false;
-            connectedPhone = '';
+            session.isConnected = false;
+            session.connectedPhone = '';
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            console.log('⚠️ انقطع الاتصال بالواتساب، رمز الحالة:', statusCode);
+            console.log(`⚠️ انقطع الاتصال للقناة [${channelId}]، رمز الحالة:`, statusCode);
             if (shouldReconnect) {
-                connectToWhatsApp();
+                startSessionForChannel(channel);
             } else {
-                latestQr = '';
-                console.log('🔒 تم تسجيل الخروج نهائياً. احذف مجلد auth_info_baileys ثم أعد التشغيل لربط حساب جديد.');
+                session.latestQr = '';
+                console.log(`🔒 تم تسجيل الخروج نهائياً للقناة [${channelId}]`);
             }
         } else if (connection === 'open') {
-            isConnected = true;
-            latestQr = '';
-            connectedPhone = normalizePhone(sock.user?.id?.split(':')[0] || '');
-            console.log('✅ متصل بالواتساب الفعلي بنجاح! الرقم المتصل:', connectedPhone);
+            session.isConnected = true;
+            session.latestQr = '';
+            session.connectedPhone = normalizePhone(sock.user?.id?.split(':')[0] || '');
+            console.log(`✅ القناة [${session.name} - ${channelId}] متصلة بالرقم: ${session.connectedPhone}`);
         }
     });
 
@@ -127,15 +118,16 @@ async function connectToWhatsApp() {
                     'رسالة مرفقة أو وسائط';
 
                 const pushName = msg.pushName || `عميل واتساب (${senderPhone})`;
-                const targetChannelId = await resolveChannelIdByConnectedPhone(connectedPhone);
 
+                // البحث عن محادثة لنفس المرسل على نفس القناة تحديداً
                 let { data: convs, error: convErr } = await dbClient
                     .from('conversations')
                     .select('*')
-                    .eq('sender_contact', senderPhone);
+                    .eq('sender_contact', senderPhone)
+                    .eq('channel_id', channelId);
 
                 if (convErr) {
-                    console.error('❌ خطأ في البحث عن المحادثة:', convErr.message);
+                    console.error(`❌ خطأ في البحث عن المحادثة [${channelId}]:`, convErr.message);
                     continue;
                 }
 
@@ -151,8 +143,8 @@ async function connectToWhatsApp() {
                         .eq('id', convId);
                 } else {
                     const summaryNote = isLidOnly
-                        ? `رسالة واردة عبر معرّف واتساب (LID: ${senderPhone}) على الرقم (${connectedPhone || 'غير محدد'}).`
-                        : `رسالة واردة عبر الواتساب على الرقم (${connectedPhone || 'غير محدد'}).`;
+                        ? `رسالة واردة عبر معرّف (LID: ${senderPhone}) على قناة ${session.name} (${session.connectedPhone || 'غير محدد'}).`
+                        : `رسالة واردة عبر الواتساب على قناة ${session.name} (${session.connectedPhone || 'غير محدد'}).`;
 
                     const { data: newConv, error: insertErr } = await dbClient
                         .from('conversations')
@@ -160,14 +152,14 @@ async function connectToWhatsApp() {
                             ticket: '#T-' + Math.floor(1000 + Math.random() * 9000),
                             sender_name: pushName,
                             sender_contact: senderPhone,
-                            channel_id: targetChannelId,
+                            channel_id: channelId,
                             unread: true,
                             ai_summary: summaryNote
                         }])
                         .select();
 
                     if (insertErr || !newConv || !newConv[0]) {
-                        console.error('❌ خطأ في إنشاء المحادثة:', insertErr?.message);
+                        console.error(`❌ خطأ في إنشاء المحادثة [${channelId}]:`, insertErr?.message);
                         continue;
                     }
                     convId = newConv[0].id;
@@ -179,116 +171,179 @@ async function connectToWhatsApp() {
                         conversation_id: convId,
                         from_type: 'customer',
                         text: messageText,
-                        via_channel: targetChannelId
+                        via_channel: channelId
                     }]);
 
                 if (msgErr) {
-                    console.error('❌ خطأ في حفظ الرسالة:', msgErr.message);
+                    console.error(`❌ خطأ في حفظ الرسالة [${channelId}]:`, msgErr.message);
                 } else {
-                    console.log(`📩 تم حفظ رسالة واردة من ${senderPhone} (LID فقط: ${isLidOnly}) على القناة ${targetChannelId}`);
+                    console.log(`📩 تم حفظ رسالة واردة من ${senderPhone} على القناة ${channelId}`);
                 }
             } catch (err) {
-                console.error('❌ خطأ أثناء معالجة رسالة واردة:', err.message);
+                console.error(`❌ خطأ أثناء معالجة رسالة في قناة ${channelId}:`, err.message);
             }
         }
     });
 }
 
-// عرض باركود الواتساب كصورة واضحة في المتصفح
-app.get('/qr', async (req, res) => {
-    try {
-        if (isConnected) {
-            return res.send(`
-                <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
-                <head>
-                    <meta charset="UTF-8" />
-                    <title>حالة الواتساب</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
-                        .box { display: inline-block; background: #fff; padding: 28px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-                        .ok { color: #15803d; font-size: 19px; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <div class="box">
-                        <p class="ok">✅ الواتساب متصل بنجاح</p>
-                        <p>الرقم المرتبط: ${connectedPhone || 'غير محدد'}</p>
-                    </div>
-                </body>
-                </html>
-            `);
+async function initSelectedChannels() {
+    const { data: channels, error } = await dbClient
+        .from('channels')
+        .select('*')
+        .eq('type', 'phone');
+
+    if (error || !channels) {
+        console.error('❌ تعذر جلب القنوات من Supabase:', error?.message);
+        return;
+    }
+
+    const filtered = channels
+        .filter(ch => {
+            const cleanVal = normalizePhone(ch.value);
+            return ALLOWED_CHANNELS.includes(String(ch.id)) || ALLOWED_CHANNELS.includes(cleanVal);
+        })
+        .slice(0, 2);
+
+    // ضمان وجود جلسة حتى لو لم يرجع صف من قاعدة البيانات لسبب ما
+    for (const allowedId of ALLOWED_CHANNELS) {
+        const found = filtered.find(c => String(c.id) === allowedId);
+        if (found) {
+            await startSessionForChannel(found);
+        } else {
+            await startSessionForChannel({ id: allowedId, name: allowedId, value: '' });
         }
+    }
+}
 
-        if (!latestQr) {
-            return res.send(`
-                <!DOCTYPE html>
-                <html lang="ar" dir="rtl">
-                <head>
-                    <meta charset="UTF-8" />
-                    <title>انتظار الباركود</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
-                        .box { display: inline-block; background: #fff; padding: 28px; border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-                    </style>
-                </head>
-                <body>
-                    <div class="box">
-                        <h3>⏳ جاري تجهيز رمز QR...</h3>
-                        <p>سيتم تحديث الصفحة تلقائياً خلال 3 ثوانٍ.</p>
-                    </div>
-                    <script>setTimeout(() => location.reload(), 3000);</script>
-                </body>
-                </html>
-            `);
-        }
+// عرض قائمة القناتين وروابط مسح الباركود لكل قناة
+app.get('/qr', (req, res) => {
+    const rows = Object.values(sessions).map(s => `
+        <tr>
+            <td style="padding:10px;border:1px solid #cbd5e1;">${s.id}</td>
+            <td style="padding:10px;border:1px solid #cbd5e1;">${s.name}</td>
+            <td style="padding:10px;border:1px solid #cbd5e1;">${s.expectedPhone || '-'}</td>
+            <td style="padding:10px;border:1px solid #cbd5e1;">${s.isConnected ? `✅ متصل (${s.connectedPhone})` : '⏳ غير متصل'}</td>
+            <td style="padding:10px;border:1px solid #cbd5e1;"><a href="/qr/${s.id}">فتح QR</a></td>
+        </tr>
+    `).join('');
 
-        const qrImageDataUrl = await QRCode.toDataURL(latestQr, { width: 320, margin: 2 });
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8" />
+            <meta http-equiv="refresh" content="10" />
+            <title>ربط قنوات الواتساب (p1 و p2)</title>
+        </head>
+        <body style="font-family:Arial,sans-serif;padding:30px;background:#f8fafc;color:#0f172a;">
+            <h2>ربط قنوات الواتساب المفعّلة (p1 و p2)</h2>
+            <table style="border-collapse:collapse;width:100%;background:#fff;">
+                <thead>
+                    <tr style="background:#f1f5f9;">
+                        <th style="padding:10px;border:1px solid #cbd5e1;">المعرف</th>
+                        <th style="padding:10px;border:1px solid #cbd5e1;">اسم القناة</th>
+                        <th style="padding:10px;border:1px solid #cbd5e1;">الرقم المسجل</th>
+                        <th style="padding:10px;border:1px solid #cbd5e1;">الحالة</th>
+                        <th style="padding:10px;border:1px solid #cbd5e1;">الباركود</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </body>
+        </html>
+    `);
+});
 
-        res.send(`
+// باركود مستقل لكل قناة (مثل /qr/p1 أو /qr/p2)
+app.get('/qr/:channelId', async (req, res) => {
+    const session = sessions[req.params.channelId];
+    if (!session) {
+        return res.status(404).send('القناة غير مفعّلة أو غير موجودة');
+    }
+
+    if (session.isConnected) {
+        return res.send(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
-            <head>
-                <meta charset="UTF-8" />
-                <meta http-equiv="refresh" content="15" />
-                <title>مسح باركود واتساب</title>
-                <style>
-                    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f8fafc; color: #0f172a; }
-                    .card { display: inline-block; background: #fff; padding: 28px; border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
-                    img { background: #fff; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; }
-                    p { color: #475569; font-size: 14px; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <h2>امسح رمز QR من تطبيق الواتساب في جوالك</h2>
-                    <img src="${qrImageDataUrl}" alt="WhatsApp QR Code" />
-                    <p>الأجهزة المرتبطة ← ربط جهاز. تتحدث الصفحة تلقائياً كل 15 ثانية.</p>
+            <head><meta charset="UTF-8" /><title>متصل</title></head>
+            <body style="font-family:Arial,sans-serif;text-align:center;padding:50px;background:#f8fafc;">
+                <div style="display:inline-block;background:#fff;padding:28px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                    <p style="color:#15803d;font-size:19px;font-weight:bold;">✅ قناة (${session.name} - ${session.id}) متصلة بنجاح</p>
+                    <p>الرقم المرتبط: ${session.connectedPhone || session.expectedPhone}</p>
                 </div>
             </body>
             </html>
         `);
-    } catch (err) {
-        res.status(500).send('تعذر توليد صورة الباركود');
     }
+
+    if (!session.latestQr) {
+        return res.send(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head><meta charset="UTF-8" /><title>انتظار QR</title></head>
+            <body style="font-family:Arial,sans-serif;text-align:center;padding:50px;background:#f8fafc;">
+                <div style="display:inline-block;background:#fff;padding:28px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                    <h3>⏳ جاري تجهيز رمز QR لقناة (${session.name} - ${session.id})...</h3>
+                    <p>سيتم تحديث الصفحة تلقائياً خلال 3 ثوانٍ.</p>
+                </div>
+                <script>setTimeout(() => location.reload(), 3000);</script>
+            </body>
+            </html>
+        `);
+    }
+
+    const qrImageDataUrl = await QRCode.toDataURL(session.latestQr, { width: 320, margin: 2 });
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8" />
+            <meta http-equiv="refresh" content="15" />
+            <title>مسح باركود ${session.name}</title>
+        </head>
+        <body style="font-family:Arial,sans-serif;text-align:center;padding:40px;background:#f8fafc;color:#0f172a;">
+            <div style="display:inline-block;background:#fff;padding:28px;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.08);">
+                <h2>امسح رمز QR لقناة: ${session.name} (${session.id})</h2>
+                <p>الرقم المتوقع: ${session.expectedPhone || 'غير محدد'}</p>
+                <img src="${qrImageDataUrl}" alt="WhatsApp QR Code" style="background:#fff;padding:12px;border-radius:12px;border:1px solid #e2e8f0;" />
+                <p style="color:#475569;font-size:14px;">الأجهزة المرتبطة ← ربط جهاز. تتحدث الصفحة تلقائياً كل 15 ثانية.</p>
+            </div>
+        </body>
+        </html>
+    `);
 });
 
-// نقطة التحقق من حالة الاتصال والرقم المرتبط للواجهة
+// حالة القناتين (متوافق مع الواجهة الحالية ويعرض تفاصيل كل قناة)
 app.get('/status', (req, res) => {
+    const p1 = sessions['p1'];
+    const p2 = sessions['p2'];
+    const list = Object.values(sessions).map(s => ({
+        channelId: s.id,
+        name: s.name,
+        connected: s.isConnected,
+        phone: s.connectedPhone
+    }));
+
     res.json({
-        connected: isConnected,
-        phone: connectedPhone
+        connected: list.some(x => x.connected),
+        phone: (p1 && p1.connectedPhone) || (list.find(x => x.connected)?.phone) || '',
+        channels: {
+            p1: { connected: Boolean(p1?.isConnected), phone: p1?.connectedPhone || '' },
+            p2: { connected: Boolean(p2?.isConnected), phone: p2?.connectedPhone || '' }
+        },
+        sessions: list
     });
 });
 
-// نقطة إرسال الرسائل الصادرة من لوحة تواصلنا إلى الواتساب
+// إرسال رسالة من القناة المحددة (channelId) أو من أول قناة متصلة إذا لم يُمرر channelId
 app.post('/send-whatsapp', async (req, res) => {
-    const { phone, message } = req.body;
+    const { phone, message, channelId } = req.body;
+    const session = (channelId && sessions[channelId]) || Object.values(sessions).find(s => s.isConnected);
 
-    if (!isConnected || !sock) {
+    if (!session || !session.isConnected || !session.sock) {
         return res.status(400).json({
             success: false,
-            error: 'الواتساب غير متصل حالياً، تأكد من الاتصال أولاً'
+            error: 'القناة المطلوبة غير متصلة بالواتساب حالياً'
         });
     }
 
@@ -302,23 +357,23 @@ app.post('/send-whatsapp', async (req, res) => {
 
     try {
         let targetJid = `${cleanPhone}@s.whatsapp.net`;
-
-        if (typeof sock.onWhatsApp === 'function') {
-            const results = await sock.onWhatsApp(cleanPhone);
+        if (typeof session.sock.onWhatsApp === 'function') {
+            const results = await session.sock.onWhatsApp(cleanPhone);
             if (Array.isArray(results) && results.length > 0 && results[0].exists && results[0].jid) {
                 targetJid = results[0].jid;
             }
         }
 
-        await sock.sendMessage(targetJid, { text: String(message).trim() });
+        await session.sock.sendMessage(targetJid, { text: String(message).trim() });
         res.json({
             success: true,
-            sentFrom: connectedPhone,
+            channelId: session.id,
+            sentFrom: session.connectedPhone,
             to: cleanPhone,
             jid: targetJid
         });
     } catch (error) {
-        console.error('❌ فشل إرسال رسالة الواتساب:', error.message);
+        console.error(`❌ فشل إرسال رسالة الواتساب عبر قناة ${session.id}:`, error.message);
         res.status(500).json({
             success: false,
             error: error.message
@@ -327,6 +382,6 @@ app.post('/send-whatsapp', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 خادم الواتساب شغال على البورت ${PORT}`);
-    connectToWhatsApp();
+    console.log(`🚀 خادم تواصلنا (p1 و p2) شغال على البورت ${PORT}`);
+    initSelectedChannels();
 });
