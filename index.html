@@ -7,13 +7,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
-<body class="bg-slate-100 text-slate-800 h-screen overflow-hidden flex flex-col">
+<body class="bg-slate-100 text-slate-800 h-dvh overflow-hidden flex flex-col">
 
   <!-- شاشة تسجيل الدخول -->
   <div id="login-screen" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 space-y-6 text-center relative">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 space-y-6 text-center relative">
       <div class="absolute top-4 left-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
         <span>النظام جاهز</span>
@@ -30,11 +30,11 @@
       <div class="space-y-4 text-right">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم (Username)</label>
-          <input type="text" id="login-username" value="saud" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500" />
+          <input type="text" id="login-username" value="saud" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600" />
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">الرمز السري (PIN Code)</label>
-          <input type="password" id="login-pin" value="1234" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500" />
+          <input type="password" id="login-pin" value="1234" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600" />
         </div>
 
         <div id="login-error" class="bg-rose-50 border border-rose-200 text-rose-700 p-3 rounded-xl text-xs text-center hidden font-bold">
@@ -49,31 +49,38 @@
   </div>
 
   <!-- واجهة التطبيق الرئيسية -->
-  <div id="app-container" class="flex-1 flex flex-col h-screen overflow-hidden hidden">
-    <header class="bg-slate-900 text-white h-16 px-6 flex items-center justify-between border-b border-slate-800 shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-extrabold text-xl shadow-lg">
+  <div id="app-container" class="flex-1 flex flex-col h-dvh overflow-hidden hidden">
+    <header class="bg-slate-900 text-white min-h-16 px-3 sm:px-6 py-2 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <button type="button" onclick="toggleMobileChannelsDrawer()" class="lg:hidden bg-slate-800 hover:bg-slate-700 text-emerald-400 px-2.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0">
+          <i class="fa-solid fa-sliders"></i>
+          <span class="hidden sm:inline mr-1">القنوات</span>
+        </button>
+
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-extrabold text-lg sm:text-xl shadow-lg shrink-0">
           <i class="fa-solid fa-comments"></i>
         </div>
-        <div>
-          <h1 class="text-lg font-extrabold tracking-wide leading-tight">
-            تواصلنا
-            <span class="text-emerald-400 text-xs font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full mr-1">Cloud Live</span>
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-lg font-extrabold tracking-wide leading-tight flex items-center gap-1.5 truncate">
+            <span>تواصلنا</span>
+            <span class="text-emerald-400 text-[10px] sm:text-xs font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full">Cloud Live</span>
           </h1>
-          <p id="wa-live-indicator" class="text-xs text-slate-400">إدارة قنوات الاتصال الموحدة</p>
+          <p id="wa-live-indicator" class="text-[11px] sm:text-xs text-slate-400 truncate">إدارة قنوات الاتصال الموحدة</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <button onclick="openAnalyticsModal()" class="bg-slate-800 hover:bg-slate-700 text-indigo-400 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer">
-          <i class="fa-solid fa-chart-pie"></i> تحليلات الموظفين
+      <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <button type="button" onclick="openAnalyticsModal()" title="تحليلات الموظفين" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span class="hidden md:inline">تحليلات الموظفين</span>
         </button>
 
-        <button id="admin-users-btn" onclick="openUsersModal()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 hidden cursor-pointer">
-          <i class="fa-solid fa-users-gear"></i> إدارة المستخدمين
+        <button type="button" id="admin-users-btn" onclick="openUsersModal()" title="إدارة المستخدمين" class="bg-slate-800 hover:bg-slate-700 text-sky-400 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 hidden cursor-pointer">
+          <i class="fa-solid fa-users-gear"></i>
+          <span class="hidden md:inline">إدارة المستخدمين</span>
         </button>
 
-        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700">
+        <div class="hidden sm:flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700">
           <div id="current-user-avatar" class="w-7 h-7 rounded-full bg-emerald-500 text-slate-950 font-extrabold text-xs flex items-center justify-center">س</div>
           <div class="text-xs text-right">
             <span id="current-user-name" class="text-white font-bold block">-</span>
@@ -81,21 +88,31 @@
           </div>
         </div>
 
-        <button onclick="logout()" title="تسجيل الخروج" class="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white p-2.5 rounded-xl text-xs transition cursor-pointer">
+        <button type="button" onclick="logout()" title="تسجيل الخروج" class="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white p-2 sm:p-2.5 rounded-xl text-xs transition cursor-pointer">
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
     </header>
 
-    <div class="flex-1 flex overflow-hidden">
-      <!-- القائمة الجانبية -->
-      <aside class="w-72 bg-slate-900 text-slate-300 flex flex-col border-l border-slate-800 shrink-0 overflow-y-auto p-4 space-y-4">
-        <button onclick="openNewMessageModal()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition cursor-pointer shadow-lg">
+    <div class="flex-1 flex overflow-hidden relative">
+      <!-- غطاء القنوات على الجوال -->
+      <div id="mobile-drawer-backdrop" onclick="toggleMobileChannelsDrawer(false)" class="fixed inset-0 bg-slate-950/60 z-30 hidden lg:hidden"></div>
+
+      <!-- القائمة الجانبية للقنوات -->
+      <aside id="channels-sidebar" class="fixed lg:static inset-y-0 right-0 z-40 w-72 max-w-[85vw] bg-slate-900 text-slate-200 hidden lg:flex flex-col border-l border-slate-800 shrink-0 overflow-y-auto p-4 space-y-4">
+        <div class="flex items-center justify-between lg:hidden pb-2 border-b border-slate-800">
+          <span class="text-xs font-bold text-slate-200">القنوات والصناديق</span>
+          <button type="button" onclick="toggleMobileChannelsDrawer(false)" class="text-slate-400 hover:text-white p-1 cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <button type="button" onclick="openNewMessageModal(); toggleMobileChannelsDrawer(false);" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition cursor-pointer shadow-lg">
           <i class="fa-solid fa-pen-to-square"></i><span>رسالة جديدة</span>
         </button>
 
-        <button onclick="filterByChannel('all')" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition cursor-pointer">
-          <span class="flex items-center gap-2.5"><i class="fa-solid fa-inbox"></i><span>صندوقي الموحد</span></span>
+        <button type="button" onclick="filterByChannel('all'); toggleMobileChannelsDrawer(false);" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition cursor-pointer">
+          <span class="flex items-center gap-2.5"><i class="fa-solid fa-inbox text-emerald-400"></i><span>صندوقي الموحد</span></span>
           <span id="badge-all" class="bg-emerald-500 text-slate-950 text-xs px-2 py-0.5 rounded-full font-extrabold">0</span>
         </button>
 
@@ -110,45 +127,65 @@
       </aside>
 
       <!-- قائمة المحادثات -->
-      <section class="w-96 bg-white border-l border-slate-200 flex flex-col shrink-0">
-        <div class="p-3.5 border-b border-slate-200 bg-slate-50/70">
-          <input type="text" id="search-input" oninput="renderConversations()" placeholder="ابحث في المحادثات أو الأرقام..." class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500" />
+      <section id="conversations-pane" class="w-full lg:w-96 bg-white border-l border-slate-200 flex flex-col shrink-0">
+        <div class="p-3 sm:p-3.5 border-b border-slate-200 bg-slate-50">
+          <input type="text" id="search-input" oninput="renderConversations()" placeholder="ابحث في المحادثات أو الأرقام..." class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-600" />
         </div>
         <div id="conversations-list" class="flex-1 overflow-y-auto divide-y divide-slate-100"></div>
       </section>
 
       <!-- مساحة المحادثة -->
-      <main class="flex-1 flex flex-col bg-slate-50 overflow-hidden" id="chat-area"></main>
+      <main id="chat-area" class="hidden lg:flex flex-1 flex-col bg-slate-50 overflow-hidden"></main>
+    </div>
+  </div>
+
+  <!-- نافذة معاينة الصورة -->
+  <div id="mobile-media-modal" onclick="closeMobileMediaModal()" class="fixed inset-0 bg-slate-950/90 z-50 hidden items-center justify-center p-4">
+    <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-4 space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <span id="mobile-media-title" class="text-xs font-bold text-slate-700 truncate">صورة مرفقة</span>
+        <button type="button" onclick="closeMobileMediaModal()" class="text-slate-500 hover:text-slate-900 font-bold text-sm px-2 py-1 cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="bg-slate-100 rounded-xl p-2 flex items-center justify-center max-h-[70dvh] overflow-auto">
+        <img id="mobile-media-img" src="" alt="مرفق" class="max-h-[65dvh] w-auto rounded-lg object-contain" />
+      </div>
+      <div class="flex justify-end">
+        <a id="mobile-media-download" href="#" download target="_blank" rel="noopener noreferrer" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl">
+          تحميل الصورة
+        </a>
+      </div>
     </div>
   </div>
 
   <!-- نافذة إنشاء رسالة جديدة ومحادثة -->
   <div id="new-message-modal" class="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 relative">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-6 space-y-5 relative max-h-[92dvh] overflow-y-auto">
       <div class="flex items-center justify-between border-b pb-3">
         <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-paper-plane text-emerald-600 ml-2"></i>بدء رسالة أو محادثة جديدة</h3>
-        <button onclick="closeNewMessageModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <button type="button" onclick="closeNewMessageModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
       <form onsubmit="createNewMessage(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">اسم العميل / المستلم</label>
-          <input type="text" id="new-sender-name" placeholder="مثال: صالح الوهبي" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500" required />
+          <input type="text" id="new-sender-name" placeholder="مثال: صالح الوهبي" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-600" required />
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">رقم الجوال أو وسيلة الاتصال المرتبطة</label>
-          <input type="text" id="new-sender-contact" placeholder="مثال: 966501234567" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs font-mono focus:outline-none focus:border-emerald-500" required />
+          <input type="text" id="new-sender-contact" placeholder="مثال: 966501234567" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs font-mono focus:outline-none focus:border-emerald-600" required />
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">القناة المستخدمة للإرسال</label>
-          <select id="new-channel-select" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs bg-white focus:outline-none focus:border-emerald-500"></select>
+          <select id="new-channel-select" class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs bg-white focus:outline-none focus:border-emerald-600"></select>
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">نص الرسالة الأولى</label>
-          <textarea id="new-msg-text" rows="3" placeholder="اكتب نص الرسالة هنا..." class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500" required></textarea>
+          <textarea id="new-msg-text" rows="3" placeholder="اكتب نص الرسالة هنا..." class="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-emerald-600" required></textarea>
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
@@ -161,32 +198,32 @@
 
   <!-- نافذة تحليل الأداء -->
   <div id="analytics-modal" class="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6 space-y-5 relative max-h-[92vh] flex flex-col">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-5 sm:p-6 space-y-5 relative max-h-[92dvh] flex flex-col">
       <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-chart-pie text-indigo-600 ml-2"></i>تحليلات أداء الموظفين وإحصاءات الردود</h3>
-        <button onclick="closeAnalyticsModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="text-sm sm:text-base font-extrabold text-slate-900"><i class="fa-solid fa-chart-pie text-emerald-600 ml-2"></i>تحليلات أداء الموظفين وإحصاءات الردود</h3>
+        <button type="button" onclick="closeAnalyticsModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-6 pr-1">
-        <div class="grid grid-cols-3 gap-4">
-          <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
-            <div class="text-xs text-emerald-700 font-bold mb-1">إجمالي المحادثات</div>
-            <div id="stat-total-conv" class="text-2xl font-extrabold text-emerald-900">0</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center">
+            <div class="text-xs text-slate-500 font-bold mb-1">إجمالي المحادثات</div>
+            <div id="stat-total-conv" class="text-2xl font-extrabold text-slate-900">0</div>
           </div>
           <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-center">
             <div class="text-xs text-amber-700 font-bold mb-1">المهام الهامة (عاجلة)</div>
             <div id="stat-urgent-conv" class="text-2xl font-extrabold text-amber-900">0</div>
           </div>
-          <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl text-center">
-            <div class="text-xs text-indigo-700 font-bold mb-1">المحادثات المنجزة</div>
-            <div id="stat-resolved-conv" class="text-2xl font-extrabold text-indigo-900">0</div>
+          <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
+            <div class="text-xs text-emerald-700 font-bold mb-1">المحادثات المنجزة</div>
+            <div id="stat-resolved-conv" class="text-2xl font-extrabold text-emerald-900">0</div>
           </div>
         </div>
 
         <div>
           <h4 class="text-xs font-bold text-slate-700 mb-2">عدد الردود والنشاط لكل موظف</h4>
-          <div class="border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-right text-xs">
+          <div class="border border-slate-200 rounded-xl overflow-x-auto">
+            <table class="w-full text-right text-xs min-w-[360px]">
               <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
                 <tr>
                   <th class="p-3">اسم الموظف</th>
@@ -204,10 +241,10 @@
 
   <!-- نافذة إدارة المستخدمين -->
   <div id="users-modal" class="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 space-y-5 relative max-h-[92vh] flex flex-col">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-5 sm:p-6 space-y-5 relative max-h-[92dvh] flex flex-col">
       <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-users-gear text-emerald-600 ml-2"></i>إدارة المستخدمين والصلاحيات</h3>
-        <button onclick="closeUsersModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <h3 class="text-sm sm:text-base font-extrabold text-slate-900"><i class="fa-solid fa-users-gear text-sky-600 ml-2"></i>إدارة المستخدمين والصلاحيات</h3>
+        <button type="button" onclick="closeUsersModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-4 pr-1">
@@ -218,25 +255,25 @@
             <button type="button" onclick="resetUserForm()" class="text-[11px] text-emerald-600 font-bold hover:underline">إفراغ الحقول</button>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">اسم المستخدم</label>
-              <input type="text" id="u-username" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500" required />
+              <input type="text" id="u-username" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-600" required />
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">الرمز السري (PIN)</label>
-              <input type="text" id="u-pin" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500" required />
+              <input type="text" id="u-pin" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-600" required />
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">الاسم الكامل</label>
-              <input type="text" id="u-name" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500" required />
+              <input type="text" id="u-name" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-600" required />
             </div>
             <div>
               <label class="block text-[11px] font-bold text-slate-600 mb-1">المسمى الوظيفي</label>
-              <input type="text" id="u-role" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500" required />
+              <input type="text" id="u-role" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-600" required />
             </div>
           </div>
 
@@ -247,7 +284,7 @@
 
           <div class="border-t pt-3">
             <label class="block text-xs font-bold text-slate-700 mb-2">صلاحيات القنوات:</label>
-            <div id="channels-checkboxes" class="grid grid-cols-2 gap-2 bg-white p-3 rounded-lg border border-slate-200 max-h-36 overflow-y-auto"></div>
+            <div id="channels-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white p-3 rounded-lg border border-slate-200 max-h-36 overflow-y-auto"></div>
           </div>
 
           <div class="flex justify-end gap-2 pt-2">
@@ -257,8 +294,8 @@
 
         <div>
           <h4 class="text-xs font-bold text-slate-700 mb-2">قائمة الأعضاء</h4>
-          <div class="border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-right text-xs">
+          <div class="border border-slate-200 rounded-xl overflow-x-auto">
+            <table class="w-full text-right text-xs min-w-[420px]">
               <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
                 <tr>
                   <th class="p-2.5">الاسم</th>
@@ -289,6 +326,68 @@
     let activeConversationId = null;
     let replyChannelId = '';
     let liveWaStatus = { connected: false, phone: '', sessions: [] };
+    let isMobileChatView = false;
+
+    function isMobileScreen() {
+      return window.innerWidth < 1024;
+    }
+
+    function syncMobileView() {
+      const convPane = document.getElementById('conversations-pane');
+      const chatPane = document.getElementById('chat-area');
+      if (!convPane || !chatPane) return;
+
+      if (!isMobileScreen()) {
+        convPane.classList.remove('hidden');
+        convPane.classList.add('flex');
+        chatPane.classList.remove('hidden');
+        chatPane.classList.add('flex');
+        return;
+      }
+
+      if (isMobileChatView && activeConversationId) {
+        convPane.classList.add('hidden');
+        convPane.classList.remove('flex');
+        chatPane.classList.remove('hidden');
+        chatPane.classList.add('flex', 'w-full');
+      } else {
+        convPane.classList.remove('hidden');
+        convPane.classList.add('flex', 'w-full');
+        chatPane.classList.add('hidden');
+        chatPane.classList.remove('flex');
+      }
+    }
+
+    function toggleMobileChannelsDrawer(forceOpen) {
+      const sidebar = document.getElementById('channels-sidebar');
+      const backdrop = document.getElementById('mobile-drawer-backdrop');
+      if (!sidebar || !backdrop) return;
+
+      const currentlyOpen = !sidebar.classList.contains('hidden');
+      const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !currentlyOpen;
+
+      if (shouldOpen) {
+        sidebar.classList.remove('hidden');
+        sidebar.classList.add('flex');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('hidden');
+        sidebar.classList.remove('flex');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    function goBackToListMobile() {
+      isMobileChatView = false;
+      syncMobileView();
+    }
+
+    window.addEventListener('resize', () => {
+      syncMobileView();
+      if (!isMobileScreen()) {
+        toggleMobileChannelsDrawer(false);
+      }
+    });
 
     function normalizePhone(val) {
       return String(val || '').replace(/\D/g, '');
@@ -309,6 +408,95 @@
       return liveWaStatus.sessions.find(s => isSamePhone(s.phone, ch.value)) || null;
     }
 
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function openMobileMediaModal(url, name) {
+      const modal = document.getElementById('mobile-media-modal');
+      const img = document.getElementById('mobile-media-img');
+      const title = document.getElementById('mobile-media-title');
+      const dl = document.getElementById('mobile-media-download');
+      if (!modal || !img) return;
+      img.src = url;
+      if (title) title.textContent = name || 'صورة مرفقة';
+      if (dl) {
+        dl.href = url;
+        dl.setAttribute('download', name || 'image');
+      }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeMobileMediaModal() {
+      const modal = document.getElementById('mobile-media-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderAttachmentContent(m, isAgent) {
+      const mediaUrl = m.media_url || m.file_url || m.attachment_url || '';
+      const mediaType = String(m.media_type || m.file_type || '').toLowerCase();
+      const rawText = String(m.text || '');
+      const foundUrlMatch = rawText.match(/https?:\/\/[^\s"'<>]+/i);
+      const finalUrl = (mediaUrl || (foundUrlMatch ? foundUrlMatch[0] : '')).replace(/[),.;]+$/, '');
+
+      if (!finalUrl) {
+        return `<div class="whitespace-pre-wrap break-words">${escapeHtml(rawText || 'رسالة مرفقة أو وسائط')}</div>`;
+      }
+
+      const isImage = mediaType.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)(\?.*)?$/i.test(finalUrl);
+      const fileName = m.file_name || decodeURIComponent(finalUrl.split('/').pop()?.split('?')[0] || (isImage ? 'صورة.jpg' : 'ملف'));
+      const caption = rawText.replace(finalUrl, '').trim();
+
+      const safeUrl = escapeHtml(finalUrl);
+      const safeName = escapeHtml(fileName);
+      const safeCaption = caption ? `<div class="whitespace-pre-wrap break-words">${escapeHtml(caption)}</div>` : '';
+
+      if (isImage) {
+        return `
+          <div class="space-y-2">
+            <img
+              src="${safeUrl}"
+              alt="${safeName}"
+              onclick="openMobileMediaModal('${safeUrl}', '${safeName}')"
+              class="max-h-60 w-auto max-w-full rounded-xl object-cover cursor-pointer border border-black/10"
+              loading="lazy"
+            />
+            <div class="flex items-center justify-between gap-2 text-[11px] ${isAgent ? 'text-slate-200' : 'text-slate-500'}">
+              <span class="truncate">${safeName}</span>
+              <a href="${safeUrl}" download="${safeName}" target="_blank" rel="noopener noreferrer" class="underline font-bold shrink-0">تحميل</a>
+            </div>
+            ${safeCaption}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="space-y-2">
+          <a
+            href="${safeUrl}"
+            download="${safeName}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 p-2.5 rounded-xl border ${isAgent ? 'bg-white/10 border-white/20 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}"
+          >
+            <i class="fa-solid fa-file-arrow-down text-base shrink-0"></i>
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-bold truncate">${safeName}</div>
+              <div class="text-[10px] opacity-75">اضغط لفتح أو تحميل الملف</div>
+            </div>
+          </a>
+          ${safeCaption}
+        </div>
+      `;
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
       const storedUser = localStorage.getItem('tawasulna_user');
       if (storedUser) {
@@ -320,6 +508,7 @@
           document.getElementById('admin-users-btn').classList.remove('hidden');
         }
 
+        syncMobileView();
         await loadAppData();
         await checkLiveWhatsAppNumber();
         setInterval(checkLiveWhatsAppNumber, 10000);
@@ -362,6 +551,7 @@
           document.getElementById('admin-users-btn').classList.remove('hidden');
         }
 
+        syncMobileView();
         await loadAppData();
         await checkLiveWhatsAppNumber();
         setInterval(checkLiveWhatsAppNumber, 10000);
@@ -446,6 +636,7 @@
         renderSidebar();
         renderConversations();
         renderChatArea();
+        syncMobileView();
       }
     }
 
@@ -475,23 +666,23 @@
           const isMatched = Boolean(session && session.connected) || (liveWaStatus.connected && isSamePhone(ch.value, liveWaStatus.phone));
           const badge = isMatched
             ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold shrink-0">متصل</span>`
-            : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">غير مرتبط</span>`;
+            : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 shrink-0">غير مرتبط</span>`;
 
           phonesList.innerHTML += `
-            <button onclick="filterByChannel('${ch.id}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-right text-xs transition cursor-pointer ${selectedChannel === ch.id ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:bg-slate-800/50'}">
+            <button type="button" onclick="filterByChannel('${ch.id}'); toggleMobileChannelsDrawer(false);" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-right text-xs transition cursor-pointer ${selectedChannel === ch.id ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}">
               <div class="truncate">
-                <div class="text-slate-200 truncate">${ch.name}</div>
-                <div class="text-[11px] text-slate-500 font-mono" dir="ltr">${ch.value}</div>
+                <div class="text-white truncate">${ch.name}</div>
+                <div class="text-[11px] text-slate-400 font-mono" dir="ltr">${ch.value}</div>
               </div>
               ${badge}
             </button>
           `;
         } else {
           emailsList.innerHTML += `
-            <button onclick="filterByChannel('${ch.id}')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-right text-xs transition cursor-pointer ${selectedChannel === ch.id ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:bg-slate-800/50'}">
+            <button type="button" onclick="filterByChannel('${ch.id}'); toggleMobileChannelsDrawer(false);" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-right text-xs transition cursor-pointer ${selectedChannel === ch.id ? 'bg-emerald-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}">
               <div class="truncate">
-                <div class="text-slate-200 truncate">${ch.name}</div>
-                <div class="text-[11px] text-slate-500 font-mono" dir="ltr">${ch.value}</div>
+                <div class="text-white truncate">${ch.name}</div>
+                <div class="text-[11px] text-slate-400 font-mono" dir="ltr">${ch.value}</div>
               </div>
             </button>
           `;
@@ -533,19 +724,19 @@
 
         let badgeHTML = '';
         if (c.urgent) badgeHTML += `<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[9px] font-bold ml-1">هام</span>`;
-        if (c.resolved) badgeHTML += `<span class="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[9px] font-bold">منجز</span>`;
+        if (c.resolved) badgeHTML += `<span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[9px] font-bold">منجز</span>`;
 
         return `
           <div onclick="openConversation(${c.id})" class="p-3.5 cursor-pointer transition hover:bg-slate-50 ${isSelected ? 'bg-emerald-50/70 border-r-4 border-emerald-500' : ''}">
             <div class="flex justify-between items-center mb-1">
-              <span class="font-bold text-sm text-slate-800">${c.sender_name || 'عميل'}</span>
+              <span class="font-bold text-sm text-slate-800">${escapeHtml(c.sender_name || 'عميل')}</span>
               <div>${badgeHTML}</div>
             </div>
             <div class="flex items-center gap-2 mb-1 flex-wrap">
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">${ch.name || c.channel_id}</span>
-              ${c.sender_contact ? `<span class="text-[11px] font-mono text-slate-500" dir="ltr">${c.sender_contact}</span>` : ''}
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">${escapeHtml(ch.name || c.channel_id)}</span>
+              ${c.sender_contact ? `<span class="text-[11px] font-mono text-slate-500" dir="ltr">${escapeHtml(c.sender_contact)}</span>` : ''}
             </div>
-            <p class="text-xs text-slate-500 truncate">${lastMsg.text || ''}</p>
+            <p class="text-xs text-slate-500 truncate">${escapeHtml(lastMsg.text || lastMsg.file_name || 'مرفق')}</p>
           </div>
         `;
       }).join('');
@@ -555,8 +746,10 @@
       activeConversationId = id;
       const conv = conversations.find(c => c.id === id);
       if (conv) { replyChannelId = conv.channel_id; }
+      isMobileChatView = true;
       renderConversations();
       renderChatArea();
+      syncMobileView();
     }
 
     function renderChatArea() {
@@ -571,47 +764,53 @@
       const incomingCh = channels.find(x => x.id === conv.channel_id) || { name: '', value: '' };
 
       chatArea.innerHTML = `
-        <div class="bg-white px-6 py-3.5 border-b border-slate-200 flex items-center justify-between shrink-0 gap-3 flex-wrap">
-          <div>
-            <h2 class="font-bold text-slate-800 text-sm">${conv.sender_name || 'عميل'} <span class="text-xs font-mono text-slate-400">${conv.ticket || ''}</span></h2>
-            <div class="text-xs text-slate-500 mt-0.5">
-              المرسل: <strong class="font-mono text-slate-700" dir="ltr">${conv.sender_contact || 'غير محدد'}</strong>
-              · عبر: <strong class="text-slate-700">${incomingCh.name} (${incomingCh.value})</strong>
+        <div class="bg-white px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between shrink-0 gap-3 flex-wrap">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <button type="button" onclick="goBackToListMobile()" class="lg:hidden bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer shrink-0">
+              ← رجوع
+            </button>
+            <div class="min-w-0">
+              <h2 class="font-bold text-slate-800 text-sm truncate">${escapeHtml(conv.sender_name || 'عميل')} <span class="text-xs font-mono text-slate-400">${escapeHtml(conv.ticket || '')}</span></h2>
+              <div class="text-xs text-slate-500 mt-0.5 truncate">
+                المرسل: <strong class="font-mono text-slate-700" dir="ltr">${escapeHtml(conv.sender_contact || 'غير محدد')}</strong>
+                · عبر: <strong class="text-slate-700">${escapeHtml(incomingCh.name)} (${escapeHtml(incomingCh.value)})</strong>
+              </div>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="toggleStatus(${conv.id}, 'urgent')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${conv.urgent ? 'bg-amber-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}">
+            <button type="button" onclick="toggleStatus(${conv.id}, 'urgent')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${conv.urgent ? 'bg-amber-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-amber-100'}">
               <i class="fa-solid fa-star ml-1"></i> ${conv.urgent ? 'هام وعاجل' : 'وضع كـ هام'}
             </button>
-            <button onclick="toggleStatus(${conv.id}, 'resolved')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${conv.resolved ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-indigo-100'}">
+            <button type="button" onclick="toggleStatus(${conv.id}, 'resolved')" class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${conv.resolved ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100'}">
               <i class="fa-solid fa-check-double ml-1"></i> ${conv.resolved ? 'منجز' : 'تحديد كمنجز'}
             </button>
           </div>
         </div>
 
-        <div class="bg-indigo-50 px-6 py-2 border-b border-indigo-100 text-xs text-indigo-900 shrink-0">
-          <strong>تحليل AI:</strong> ${conv.ai_summary || 'لا يوجد تحليل'}
+        <div class="bg-slate-100 px-4 sm:px-6 py-2 border-b border-slate-200 text-xs text-slate-700 shrink-0">
+          <strong>تحليل AI:</strong> ${escapeHtml(conv.ai_summary || 'لا يوجد تحليل')}
         </div>
 
-        <div id="messages-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div id="messages-container" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           ${(conv.messages || []).map(m => {
             const senderAgent = allAgents.find(a => a.id === m.user_id);
-            const senderName = m.from_type === 'agent' ? (senderAgent ? senderAgent.name : 'موظف') : conv.sender_name;
+            const isAgent = m.from_type === 'agent';
+            const senderName = isAgent ? (senderAgent ? senderAgent.name : 'موظف') : (conv.sender_name || 'عميل');
             return `
-              <div class="flex flex-col ${m.from_type === 'agent' ? 'items-end' : 'items-start'}">
-                <span class="text-[10px] text-slate-400 mb-1 px-1">${senderName}</span>
-                <div class="max-w-xl rounded-2xl px-4 py-3 text-sm shadow-sm ${m.from_type === 'agent' ? 'bg-slate-800 text-white rounded-tl-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tr-none'}">
-                  ${m.text}
+              <div class="flex flex-col ${isAgent ? 'items-end' : 'items-start'}">
+                <span class="text-[10px] text-slate-400 mb-1 px-1">${escapeHtml(senderName)}</span>
+                <div class="max-w-[88%] sm:max-w-xl rounded-2xl px-4 py-3 text-sm shadow-sm ${isAgent ? 'bg-slate-800 text-white rounded-tl-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tr-none'}">
+                  ${renderAttachmentContent(m, isAgent)}
                 </div>
               </div>
             `;
           }).join('')}
         </div>
 
-        <div class="p-4 bg-white border-t border-slate-100 shrink-0">
+        <div class="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0">
           <form onsubmit="sendReply(event); return false;" class="flex gap-2">
-            <input type="text" id="reply-input" placeholder="اكتب ردك هنا..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none" required />
-            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm cursor-pointer">إرسال</button>
+            <input type="text" id="reply-input" placeholder="اكتب ردك هنا..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600" required />
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 sm:px-6 py-2.5 rounded-xl text-sm cursor-pointer shrink-0">إرسال</button>
           </form>
         </div>
       `;
@@ -756,6 +955,7 @@
       closeNewMessageModal();
       activeConversationId = newConv[0].id;
       replyChannelId = channelId;
+      isMobileChatView = true;
       await fetchConversations();
     }
 
@@ -770,9 +970,9 @@
         const count = allMsgs.filter(m => String(m.user_id) === String(ag.id)).length;
         return `
           <tr>
-            <td class="p-3 font-bold">${ag.name}</td>
-            <td class="p-3 text-slate-500">${ag.role}</td>
-            <td class="p-3 text-center font-extrabold text-emerald-700">${count}</td>
+            <td class="p-3 font-bold">${escapeHtml(ag.name)}</td>
+            <td class="p-3 text-slate-500">${escapeHtml(ag.role)}</td>
+            <td class="p-3 text-center font-extrabold text-emerald-600">${count}</td>
           </tr>
         `;
       }).join('');
@@ -799,7 +999,7 @@
       box.innerHTML = channels.map(ch => `
         <label class="flex items-center gap-2 text-xs cursor-pointer">
           <input type="checkbox" value="${ch.id}" class="ch-perm-cb rounded border-slate-300" ${selectedIds.includes(ch.id) ? 'checked' : ''} />
-          <span>${ch.name}</span>
+          <span>${escapeHtml(ch.name)}</span>
         </label>
       `).join('');
     }
@@ -865,12 +1065,12 @@
       const tbody = document.getElementById('users-table-body');
       tbody.innerHTML = allAgents.map(ag => `
         <tr>
-          <td class="p-2.5 font-bold">${ag.name}</td>
-          <td class="p-2.5 font-mono text-slate-500">${ag.username}</td>
-          <td class="p-2.5">${ag.is_admin ? 'مدير نظام' : ag.role}</td>
+          <td class="p-2.5 font-bold">${escapeHtml(ag.name)}</td>
+          <td class="p-2.5 font-mono text-slate-500">${escapeHtml(ag.username)}</td>
+          <td class="p-2.5">${ag.is_admin ? 'مدير نظام' : escapeHtml(ag.role)}</td>
           <td class="p-2.5 text-center space-x-2 space-x-reverse">
-            <button onclick="editUser('${ag.id}')" class="text-indigo-600 hover:underline font-bold">تعديل</button>
-            <button onclick="deleteUser('${ag.id}')" class="text-rose-600 hover:underline font-bold">حذف</button>
+            <button type="button" onclick="editUser('${ag.id}')" class="text-sky-600 hover:underline font-bold">تعديل</button>
+            <button type="button" onclick="deleteUser('${ag.id}')" class="text-rose-600 hover:underline font-bold">حذف</button>
           </td>
         </tr>
       `).join('');
