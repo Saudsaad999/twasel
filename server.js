@@ -23,6 +23,14 @@ function normalizePhone(val) {
     return String(val || '').replace(/\D/g, '');
 }
 
+function formatSaudiPhone(val) {
+    let digits = normalizePhone(val);
+    if (digits.startsWith('05') && digits.length === 10) {
+        digits = '966' + digits.slice(1);
+    }
+    return digits;
+}
+
 async function resolveChannelIdByConnectedPhone(phone) {
     try {
         const { data: channels, error } = await dbClient
@@ -264,7 +272,7 @@ app.post('/send-whatsapp', async (req, res) => {
         });
     }
 
-    const cleanPhone = normalizePhone(phone);
+    const cleanPhone = formatSaudiPhone(phone);
     if (!cleanPhone || !message || !String(message).trim()) {
         return res.status(400).json({
             success: false,
@@ -273,12 +281,21 @@ app.post('/send-whatsapp', async (req, res) => {
     }
 
     try {
-        const jid = `${cleanPhone}@s.whatsapp.net`;
-        await sock.sendMessage(jid, { text: String(message).trim() });
+        let targetJid = `${cleanPhone}@s.whatsapp.net`;
+
+        if (typeof sock.onWhatsApp === 'function') {
+            const results = await sock.onWhatsApp(cleanPhone);
+            if (Array.isArray(results) && results.length > 0 && results[0].exists && results[0].jid) {
+                targetJid = results[0].jid;
+            }
+        }
+
+        await sock.sendMessage(targetJid, { text: String(message).trim() });
         res.json({
             success: true,
             sentFrom: connectedPhone,
-            to: cleanPhone
+            to: cleanPhone,
+            jid: targetJid
         });
     } catch (error) {
         console.error('❌ فشل إرسال رسالة الواتساب:', error.message);
